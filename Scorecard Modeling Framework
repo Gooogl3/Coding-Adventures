@@ -1,0 +1,1944 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Import packages"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd #this for importing/exporting data and creating dataframes\n",
+    "import numpy as np #this is for scientific computation. \n",
+    "import copy #this allows to copy\n",
+    "import scipy.stats.stats as stats #this is probability distributions and a library of statistical functions\n",
+    "from sklearn.model_selection import train_test_split #this is to split the data into train and test (validation)\n",
+    "from sklearn.linear_model import LogisticRegression #this is logistic regression\n",
+    "from sklearn.metrics import roc_auc_score #to calculate the ROC\n",
+    "import matplotlib.pyplot as plt #this is for the graph\n",
+    "from sklearn.tree import DecisionTreeClassifier #this is for decision tree\n",
+    "from sklearn import tree #this is for decision tree too\n",
+    "pd.options.mode.chained_assignment = None  # default='warn' #this is for hide warm\n",
+    "import warnings\n",
+    "warnings.filterwarnings(\"ignore\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Import Node - Import Accept File"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# import data\n",
+    "db = pd.read_csv(r\"\\\\neptune\\RAD\\4 Models\\Scorecard 8.0_Redesign\\Modeling Data\\Valid Credit\\Clarity Hit\\With Inquiry\\Accepts_5630.csv\") #imports the accepted file"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# db.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Frequency"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Calculating the frequency\n",
+    "Count_Bad = db.groupby(\"TARGET_GB_NEW\").count().loc['BAD','LN_Key2']\n",
+    "Count_Good_INDET = db.groupby(\"TARGET_GB_NEW\").count().loc[['GOOD','INDET'],'LN_Key2'].sum()\n",
+    "if Count_Good_INDET > Count_Bad:\n",
+    "    freq_dic = {'GOOD':Count_Good_INDET/Count_Bad,'BAD':1}\n",
+    "else:\n",
+    "    freq_dic = {'GOOD':1,'BAD':Count_Bad/Count_Good_INDET}\n",
+    "# freq_dic # Uncomment for frequency dic"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Adding the frequency to the dataframe\n",
+    "def Add_Frequency(row,freq_dic):\n",
+    "    if row[\"TARGET_GB_NEW\"] == 'BAD':\n",
+    "        return freq_dic['BAD']\n",
+    "    else:\n",
+    "        return freq_dic['GOOD']\n",
+    "\n",
+    "db['Frequency'] = db.apply(lambda row : Add_Frequency(row,freq_dic), axis=1)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# db[['TARGET_GB_NEW','Frequency']].head(5)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Filter Node"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# filter Good and Bad\n",
+    "Goods=db[db[\"TARGET_GB_NEW\"]==\"GOOD\"]  #we use two db because one db will give the count of the whole dataset\n",
+    "Bads=db[db[\"TARGET_GB_NEW\"]==\"BAD\"]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# print(\"Good:\",len(Goods), \"Bad:\",len(Bads))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Sample Node"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#sample down\n",
+    "if len(Goods) >= len(Bads):\n",
+    "    Bad = Bads\n",
+    "    Good = Goods.sample(len(Bad),random_state =2602)\n",
+    "    #print(\"Good:\",len(Good),\"Bad:\",len(Bad))\n",
+    "else:\n",
+    "    Good = Goods\n",
+    "    Bad = Bads.sample(len(Good),random_state=2602)\n",
+    "    #print(\"Good:\",len(Good),\"Bad:\",len(Bad))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# print(\"Good:\",len(Good),\"Bad:\",len(Bad))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Append Node"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# append Good and Bad\n",
+    "GB=Good.append(Bad) #can do Good.append(Bad)\n",
+    "# print(\"append Good and Bad:\",len(GB)) #GB #will give the dataset that has the good and bad appended"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "###### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# print(\"append Good and Bad:\",len(GB))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#not included in code\n",
+    "# Gives the data Types\n",
+    "# data_type = GB.dtypes #gives the datatype for each variable\n",
+    "# data_type #prints the list of the variable with the datatype"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Removing Variables"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# selecting all categorical variable and unnecessary columns\n",
+    "a = GB.dtypes[GB.dtypes=='object'].index.tolist()\n",
+    "b = GB.dtypes[GB.dtypes=='datetime64[ns]'].index.tolist()\n",
+    "a.extend(b)\n",
+    "a.extend(['CONTROL_NB','RECORD_NB','RECORD_NB.1','TRADE_DATE','TRADE_DATE.1','FICCLAV8_SCORE','DTI1_SCORE_TOTAL_DEBT','INCOME_INSIGHT_SCORE'\\\n",
+    "         ,'CLEAR_EARLY_RISK_SCORE','CASH_DOWNPCT','OPENINGBALANCE_PCT','PTI', 'NET_AFPCT','LTV'\\\n",
+    "         ,'LN_Key2.1','LN_Key2.2','LN_Key2.3','TARGET_GB','Frequency'\\\n",
+    "         ,'addrcurrentavmvalue60month','addrinputavmvalue12month','addrinputavmvalue','addrcurrentavmvalue','IQA9510','addrcurrentavmratio12monthprior','addrcurrentavmratio60monthprior','addrcurrentavmvalue12month'\\\n",
+    "         ,'IQF9410','addrinputavmratio12monthprior','IQF9417','IQF9510','IQF9540','subjectage','addrinputavmratio60monthprior','addrinputavmvalue60month','IQF9416','IQF9415','ssndatelowissued','ssndeceased','subjectdeceased'\\\n",
+    "         ,'IQT9536'])#extends the above \"a\" list to include other columns that we do not need \n",
+    "#a #a #will print the list \"a\" that includes all the columns that are categorical and that are not needed for the model"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# a"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# drop unnecessary columns\n",
+    "GB_for_group = GB.drop(a,axis=1) #drops the list from GB which is defined in the append of good and bad. axis =1 is the columns\n",
+    "#GB_for_group #should give the new number of columns after dropping the variables in the list \"a\""
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#create the frequency table by grabbing the frequency column from the table GB. This should be the same number as the append\n",
+    "frequency = GB['Frequency']\n",
+    "#frequency #will give the freq for each row in the GB table"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Data Partition Node"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#data partition\n",
+    "y = pd.get_dummies(GB[\"TARGET_GB_NEW\"]) #converts categorical variable (target) into dummy/indicator variables such as zero and one. The G_B becomes two columns (Good and Bad)\n",
+    "y_Good = y[\"GOOD\"] #target. Good is 1 and bad is 0\n",
+    "X_train, X_test, y_train, y_test = train_test_split(GB_for_group, y_Good, random_state = 12345, test_size=0.2) #2609\n",
+    "#X_train, X_test, y_train, y_test = train_test_split(all columns except target G_B, target column, random_state (random seed), test_size (or can use train_size))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#X_train #(training data)\n",
+    "#y_train #(training data target variable only)\n",
+    "#X_test #(test data)\n",
+    "#y_test #(test data target variable only)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Interactive Grouping Node - Before"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# create quartile_cut function\n",
+    "def quartile_cut(temp_not_missing, frequency, m):\n",
+    "    t_name = temp_not_missing.name #column name\n",
+    "    a = temp_not_missing.copy() #copy the dataframe. Note this \"a\" is not the same \"a\" from above\n",
+    "    a = pd.concat([a,frequency],join='inner',axis=1) #combine the column with the frequency column\n",
+    "    a = a.sort_values(by = t_name) #sorts the column name from smallest to largest\n",
+    "    a['cumulative sum'] = a[frequency.name].cumsum() #calculates the cumulative sum of the frequency\n",
+    "    interval = (a['cumulative sum'].max()+0.05)/m #find the max of the cumulative sum and adds 0.5 to it and then divides it by m which is the number of buckets\n",
+    "    b = {'Bucket_#':[],'Bucket_max':[]} #emtpy lists\n",
+    "    for i in range(1,m+1): #the list will only start at 1 and end at m. It will not include m+1\n",
+    "        b['Bucket_#'].append(i) #b will keep getting appended with just the values of i. \n",
+    "        b['Bucket_max'].append(a.loc[a['cumulative sum'] <= i*interval, t_name].max()) #this will check the max for each interval. Example, interval 1 for FICO can only go up to FICO score 418\n",
+    "    c = pd.DataFrame(b) #creates the data fram with bucket number and the bucket max for each bucket number\n",
+    "    c['Bucket_max'] = c['Bucket_max'].fillna(a[t_name].min()) #if the row is blank for a column then just include it in the minimum bin\n",
+    "    temp_not_missing = pd.concat([temp_not_missing,frequency],join='inner',axis=1) #combines column name with frequency\n",
+    "    temp_not_missing = temp_not_missing.reset_index() #reset the index of the dataframe \n",
+    "    temp_not_missing = temp_not_missing.sort_values(by = t_name) #sorts it by small to large by column name\n",
+    "    temp_not_missing[t_name] = temp_not_missing[t_name].astype('float64') #they all have the same data type\n",
+    "    c['Bucket_max'] = c['Bucket_max'].astype('float64') #they all have the same data type\n",
+    "    if len(temp_not_missing) == 0: #if temp_not_missing includes nothing print variable name includes Nan only\n",
+    "        print(t_name + ' are all Nan')\n",
+    "    else: \n",
+    "        d = pd.merge_asof(temp_not_missing, \\\n",
+    "        c.sort_values('Bucket_max'), \\\n",
+    "        left_on = t_name, right_on = 'Bucket_max',direction = 'forward').set_index('index')\n",
+    "    return d['Bucket_#']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# interactive grouping with decision tree(*means new)\n",
+    "def interactive_grouping2(X_train, y_train, frequency,n=5, reject_level=0.02): #(n is the maximum number of bins)\n",
+    "    X_train['useless_column'] = 1 #add a useless_column that will be used in decision tree*\n",
+    "    columns_name = X_train.columns  #gives the column name for the training data only\n",
+    "    y_name = y_train.name #gives the column name \"GOOD\". This variable is found in the data partition code\n",
+    "    freq_name = frequency.name #gives the column name \"Frequency\".\n",
+    "    group_dictionary={} #creates an empty dictionary\n",
+    "    IV_dictionary = {} #creates an empty dictionary\n",
+    "    for i in range(len(columns_name)-1):\n",
+    "        temp_not_missing = X_train.loc[X_train[columns_name[i]].notnull(), [columns_name[i],'useless_column']] #makes the columns no longer null\n",
+    "        not_missing_with_y = pd.concat([temp_not_missing,y_train],join='inner',axis=1) #add a new column (the train target variable) and if good then 1 or 0 if bad\n",
+    "        not_missing_with_y_fre = pd.concat([not_missing_with_y,frequency],join='inner',axis=1) #add a new column (frequency)\n",
+    "        not_missing_with_y_fre[\"freq*Good\"] = not_missing_with_y_fre[freq_name]*not_missing_with_y_fre[y_name] #multiplies  frequency by the value of good (either 1 or 0). for calculating Good event rate \n",
+    "        temp_missing = X_train.loc[X_train[columns_name[i]].isnull(), columns_name[i]] #split rows with Nan value out\n",
+    "        missing_with_y = pd.concat([temp_missing,y_train],join='inner',axis=1)\n",
+    "        missing_with_y_fre = pd.concat([missing_with_y,frequency],join='inner',axis=1)\n",
+    "        missing_with_y_fre[\"freq*Good\"] = missing_with_y_fre[freq_name]*missing_with_y_fre[y_name]\n",
+    "        r = 0 #this is to reset the while loop when starting a variable i.e it will do FICO then in order to do cc2_ad we want everything to reset\n",
+    "        p = 0 #this is to reset the while loop when starting a variable i.e it will do FICO then in order to do cc2_ad we want everything to reset\n",
+    "        u = 0 #this is to reset the while loop when starting a variable i.e it will do FICO then in order to do cc2_ad we want everything to reset\n",
+    "        m = n # this is to reset m\n",
+    "    # X = temp_missing, monotonic event rate grouping\n",
+    "        if len(not_missing_with_y_fre) > 0: #if not_missing_with_y_fre has record\n",
+    "            while (np.abs(r) < 0.9 or u <= 100) and m >= 1: #stop until (spearman correlation great than 0.9 and smallest bin has records more than 150) or m = 0\n",
+    "                not_missing_with_y_fre[\"Bucket1\"] = quartile_cut(not_missing_with_y_fre[columns_name[i]],frequency, 20) #quartile function from above. This will create a new variable called Bucket which is the bucket interval from quartile cut\n",
+    "                if m > 1:\n",
+    "                    clf = tree.DecisionTreeClassifier(random_state = 0, max_leaf_nodes = m, min_weight_fraction_leaf = 0.045) # *set decision tree parameters (max_leaf_nodes: max number of bins,min_weight_fraction_leaf: min sample % for each bins)*\n",
+    "                    clf = clf.fit(not_missing_with_y_fre[[\"Bucket1\",'useless_column']], not_missing_with_y_fre[y_name], not_missing_with_y_fre[freq_name].values) # *fit not_missing_with_y_fre*\n",
+    "                    not_missing_with_y_fre[\"Bucket\"] = clf.apply(not_missing_with_y_fre[[\"Bucket1\",'useless_column']]) # *find bin number for each records*\n",
+    "                    d2 = not_missing_with_y_fre.groupby('Bucket', as_index = True) #group by function. group by bucket from above\n",
+    "                    r, p = stats.spearmanr(d2[columns_name[i]].mean(), d2[\"freq*Good\"].sum()/d2[freq_name].sum()) #find the average for the column name in the training data, sum of the good event rate and divides it by the sum of the frequency then calculate spearman correlation\n",
+    "                    u = d2[y_name].count().min() #returns the count and minimum of the column that gives the output good.\n",
+    "                    m = m - 1\n",
+    "                else: #if not_missing_with_y_fre doesn't have record\n",
+    "                    not_missing_with_y_fre[\"Bucket\"] = 1\n",
+    "                    d2 = not_missing_with_y_fre.groupby('Bucket', as_index = True)\n",
+    "                    m = 0\n",
+    "            d3 = pd.DataFrame(d2[columns_name[i]].min()) #creates a table\n",
+    "            d3 = d3.rename(columns={columns_name[i]:'min_' + columns_name[i]}) #renames the column in above to mini_column name\n",
+    "            d3['max_' + columns_name[i]] = d2[columns_name[i]].max() #creates the \"max_variable name\"\n",
+    "            d3[y_name] = d2[\"freq*Good\"].sum() #sum of the good event rate\n",
+    "            d3['total'] = d2[freq_name].sum() #create column called total which is the sum of the frequency \n",
+    "            d3[y_name + '_rate'] = d3[y_name]/d3['total'] #creates a column for the good rate which is the count of good divided by the total for each interval\n",
+    "            d4 = (d3.sort_values(by = 'min_' + columns_name[i])).reset_index(drop = True) #sorts the \"min_variable name\" column\n",
+    "            d4 = d4.dropna(subset=['min_' + columns_name[i]]) #drop row that have Nan for min_columns\n",
+    "            d4 = d4.append({y_name:missing_with_y_fre[\"freq*Good\"].sum(), 'total':missing_with_y_fre[freq_name].sum() \\\n",
+    "                , y_name + '_rate':missing_with_y_fre[\"freq*Good\"].sum()/missing_with_y_fre[freq_name].sum()},ignore_index=True)\n",
+    "            d4 = d4.dropna(subset=[y_name + '_rate'])\n",
+    "        else:\n",
+    "            print(columns_name[i] + ' includes Nan only')\n",
+    "            d4 = pd.DataFrame({y_name:[missing_with_y_fre[\"freq*Good\"].sum()], 'total':[missing_with_y_fre[freq_name].sum()] \\\n",
+    "                        , y_name + '_rate':[missing_with_y_fre[\"freq*Good\"].sum()/missing_with_y_fre[freq_name].sum()]})\n",
+    "        \n",
+    "    # WOE, varified in excel\n",
+    "        Total_Event = d4[y_name].sum() #sum of the event rate\n",
+    "        Total_Nonevent = d4['total'].sum() - Total_Event #sum of the nonevent rate\n",
+    "        d4['WOE'] = d4.apply(lambda x: np.log(((x[y_name]+0.5)/Total_Event)/((x['total']-x[y_name]+0.5)/Total_Nonevent)),axis=1) #WOE calculated\n",
+    "        d4 = d4.dropna(subset=['WOE']) #drop row that have Nan for WOE\n",
+    "        group_dictionary[columns_name[i]] = d4\n",
+    "    # Information Value, varified in excel\n",
+    "        IV_dictionary[columns_name[i]] = d4.apply(lambda x: ((x[y_name]/Total_Event)-((x['total']-x[y_name])/Total_Nonevent))*x['WOE'],axis=1).sum() #information value calculated\n",
+    "    IV_table = pd.DataFrame(list(IV_dictionary.items()),columns=['Variable_Name','Information_Value']).sort_values('Information_Value', ascending=False) #creates table with variable name and the information value. It is ordered by large to small information value\n",
+    "    # reject weak variables\n",
+    "    IV_table[\"Reject_or_Accept\"] = IV_table.apply(lambda x: \"Accept\" if x['Information_Value']>=reject_level else \"reject\",axis=1) #mark all the reject variables if the information value is less than reject else mark accept\n",
+    "    # remove rejected variables from train\n",
+    "    Accept_List = IV_table.loc[IV_table[\"Reject_or_Accept\"] == \"Accept\", 'Variable_Name'].values.tolist() #creates a list of accepted variables\n",
+    "    X = X_train[Accept_List] #training data for the accepted variables\n",
+    "    \n",
+    "    # convert real vaule to WOE\n",
+    "    #X1 = X.fillna(X.min()-1).reset_index()\n",
+    "    #columns = X.columns\n",
+    "    #converted_X = X.copy()\n",
+    "    #for i in range(len(columns)):   \n",
+    "        #X1[columns[i]] = X1[columns[i]].astype('float64')\n",
+    "        #X2 = pd.merge_asof(X1.sort_values(columns[i]), \\\n",
+    "                        #group_dictionary[columns[i]].fillna(group_dictionary[columns[i]].min()-1).sort_values('min_' + columns[i]), \\\n",
+    "                        #left_on = columns[i], right_on = 'min_' + columns[i])[['index','WOE']].set_index('index')\n",
+    "        #converted_X[columns[i]] = X2['WOE']\n",
+    "    return group_dictionary, Accept_List, IV_table"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#convert X_test\n",
+    "\n",
+    "def convert_X(X_test, Accept_List, group_dictionary):\n",
+    "    X = X_test[Accept_List] #select variables with information value greater than 0.02\n",
+    "    X1 = X.fillna(X.min()-200000).reset_index() # impute Nan with minimum value-100000\n",
+    "    columns = X.columns #object\"columns\" incluses all column name\n",
+    "    converted_X = X.copy() # copy X to converted_X\n",
+    "    group_dictionary1 = copy.deepcopy(group_dictionary) # copy group_dictionary to group_dictionary1\n",
+    "    for i in range(len(columns)): #convert original value to WOE based on group_dictionary1\n",
+    "                X1[columns[i]] = X1[columns[i]].astype('float64')\n",
+    "                group_dictionary1[columns[i]].loc[0,['min_' + columns[i]]] = group_dictionary1[columns[i]]['min_' + columns[i]].min()-100000\n",
+    "                X2 = pd.merge_asof(X1.sort_values(columns[i]), \\\n",
+    "                                    group_dictionary1[columns[i]].fillna(group_dictionary1[columns[i]].min()-300000).sort_values('min_' + columns[i]), \\\n",
+    "                                    left_on = columns[i], right_on = 'min_' + columns[i])[['index','WOE']].set_index('index')\n",
+    "                converted_X[columns[i]] = X2['WOE'] #save result to converted_X\n",
+    "    return X, converted_X"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "purchaseactivitycount includes Nan only\n",
+      "purchaseactivitydollartotal includes Nan only\n",
+      "ALL9230 includes Nan only\n",
+      "ALL9239 includes Nan only\n",
+      "ALL9280 includes Nan only\n",
+      "HLC5238 includes Nan only\n",
+      "HLC5838 includes Nan only\n",
+      "HLC7150 includes Nan only\n",
+      "HLC7180 includes Nan only\n",
+      "UTI8151 includes Nan only\n"
+     ]
+    }
+   ],
+   "source": [
+    "# run the interactive grouping\n",
+    "group_dictionary, Accept_List, IV_table = interactive_grouping2(X_train, y_train,frequency, n=5, reject_level=0.02)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# regroup function\n",
+    "# This function is for binning use.\n",
+    "def regroup( group_dictionary, group_number=[0, 1, 2, 3, 4, 5], variable_name = 'crossindustry_score'):\n",
+    "    pd_Series = pd.Series(group_number) #convert list to series\n",
+    "    t = group_dictionary[variable_name].set_index(pd_Series) # reset the index\n",
+    "    t1 = t.reset_index().groupby('index') # group by index\n",
+    "    t2 = pd.DataFrame(t1['GOOD'].sum()) # sum 'GOOD' by index\n",
+    "    t2['total'] = t1['total'].sum() # sum total by index\n",
+    "    t2['GOOD_rate'] = t2['GOOD']/t2['total'] # recalculate good rate\n",
+    "    Total_Event = group_dictionary[variable_name]['GOOD'].sum() # count total event\n",
+    "    Total_Nonevent = group_dictionary[variable_name]['total'].sum() - Total_Event # count total nonevent\n",
+    "    t2['WOE'] = t2.apply(lambda x: np.log(((x['GOOD']+0.5)/Total_Event)/((x['total']-x['GOOD']+0.5)/Total_Nonevent)),axis=1) #recalculate WOE\n",
+    "    group_dictionary[variable_name] = t.drop(['GOOD_rate','WOE'],axis = 1).join(t2[['GOOD_rate','WOE']], how = 'left').reset_index(drop = True).sort_values(t.columns[0],ascending=True) # cover original GOOD_rate and WOE"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#group example: regroup(group_dictionary, group_number=[0, 1, 2, 3, 4, 0], variable_name = 'crossindustry_score')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Outputs:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# group_dictionary['ALL7350'] # Group dictionary example"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 27,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# IV_table # show information value table"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# IV_table[IV_table['Reject_or_Accept'] == 'Accept'].count() # Give the count number for Accepting variable"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Scorecard Node - Before"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# run the convert X\n",
+    "Original_X_train, Converted_X_train = convert_X(X_train, Accept_List, group_dictionary)\n",
+    "Original_X_test, Converted_X_test = convert_X(X_test, Accept_List, group_dictionary)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# find the frequency for train data and test data\n",
+    "y_train_freq = pd.concat([y_train,frequency],join='inner',axis=1)['Frequency']\n",
+    "y_test_freq = pd.concat([y_test,frequency],join='inner',axis=1)['Frequency']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# variable selection by using lasso regression\n",
+    "# drop_list is used when there is wrong trend variable in the logistic regression step otherwise it should be a EMPTY list\n",
+    "\n",
+    "drop_list = []\n",
+    "N = 15 #number of variables\n",
+    "Test_roc = [] #create a empty list for storing Test ROC\n",
+    "Train_roc = [] #create a empty list for storing Train ROC\n",
+    "Cs = np.logspace(-2, 0, num=30) #(select 20 numbers between 10^-2 and 10^4 )\n",
+    "# for each C pick the N most important variables and use these vairbles to rerun logistic regression. finally, calculate ROC for train and test.\n",
+    "for C in Cs:\n",
+    "    lr = LogisticRegression(penalty='l1',C = C, solver='saga',random_state = 1).fit(Converted_X_train.drop(drop_list,axis = 1), y_train,y_train_freq)\n",
+    "    feature_importances = pd.DataFrame(lr.coef_.T,\n",
+    "                                       index = Converted_X_train.drop(drop_list,axis = 1).columns,\n",
+    "                                        columns=['importance']).sort_values('importance',ascending=False)\n",
+    "    new_X_train=Converted_X_train[feature_importances.iloc[0:N,:].index.tolist()] #select the best N variables and create a new train dataset\n",
+    "    new_X_test=Converted_X_test[feature_importances.iloc[0:N,:].index.tolist()] #select the best N variables and create a new test dataset\n",
+    "    #force variables in\n",
+    "    #new_X_train = Converted_X_train[['BCC2306','RTA2306']]\n",
+    "    #new_X_test = Converted_X_test[['BCC2306','RTA2306']]\n",
+    "    lr = LogisticRegression().fit(new_X_train, y_train,y_train_freq) #run logistic regression\n",
+    "    y_decision_fn_scores_auc = lr.decision_function(new_X_train) # calculate score (just like when we calculate Taprezoid ROC we need socre)\n",
+    "    Train_roc.append(roc_auc_score(y_train, y_decision_fn_scores_auc, sample_weight = y_train_freq)) #calculate ROC and print it out\n",
+    "    y_decision_fn_scores_auc = lr.decision_function(new_X_test)\n",
+    "    Test_roc.append(roc_auc_score(y_test, y_decision_fn_scores_auc, sample_weight = y_test_freq))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "          C     Train      Test\n",
+      "2  0.013738  0.676765  0.648609\n",
+      "           C     Train      Test\n",
+      "0   0.010000  0.677515  0.645244\n",
+      "1   0.011721  0.680092  0.646686\n",
+      "2   0.013738  0.676765  0.648609\n",
+      "3   0.016103  0.681082  0.645976\n",
+      "4   0.018874  0.680210  0.636165\n",
+      "5   0.022122  0.680210  0.636165\n",
+      "6   0.025929  0.681560  0.640650\n",
+      "7   0.030392  0.685120  0.633615\n",
+      "8   0.035622  0.688775  0.630972\n",
+      "9   0.041753  0.690104  0.624665\n",
+      "10  0.048939  0.695355  0.638449\n",
+      "11  0.057362  0.697944  0.639736\n",
+      "12  0.067234  0.698952  0.637460\n",
+      "13  0.078805  0.697938  0.634065\n",
+      "14  0.092367  0.697804  0.632385\n",
+      "15  0.108264  0.692991  0.621473\n",
+      "16  0.126896  0.692991  0.621473\n",
+      "17  0.148735  0.692781  0.635291\n",
+      "18  0.174333  0.692781  0.635291\n",
+      "19  0.204336  0.692781  0.635291\n",
+      "20  0.239503  0.693935  0.636468\n",
+      "21  0.280722  0.689559  0.623605\n",
+      "22  0.329034  0.686005  0.623274\n",
+      "23  0.385662  0.683451  0.621553\n",
+      "24  0.452035  0.682556  0.626407\n",
+      "25  0.529832  0.674052  0.621991\n",
+      "26  0.621017  0.671903  0.627442\n",
+      "27  0.727895  0.672111  0.628385\n",
+      "28  0.853168  0.665895  0.615017\n",
+      "29  1.000000  0.654065  0.617016\n"
+     ]
+    }
+   ],
+   "source": [
+    "# plot train and test ROC (X: Cs the regulation varible, Y: ROC)\n",
+    "ax = plt.gca()\n",
+    "ax.set_xscale('log')\n",
+    "ax.plot(Cs, Train_roc,'g', label = 'Train')\n",
+    "ax.plot(Cs, Test_roc,'b', label = 'Test')\n",
+    "#Set limits and titles\n",
+    "plt.ylim([0.6,0.8]) # Y range\n",
+    "plt.xlabel('Cs')\n",
+    "plt.ylabel('AUC or ROC')\n",
+    "plt.legend()\n",
+    "plt.title('Tune regularization')\n",
+    "plt.savefig('Tuning.png')\n",
+    "plt.show()\n",
+    "df = pd.DataFrame([Cs,Train_roc,Test_roc]).T.rename(columns={0:\"C\",1:\"Train\", 2:\"Test\"}) # save result in dataframe\n",
+    "\n",
+    "print(df[df[\"Test\"] == df[\"Test\"].max()]) #print out the C with highest Test ROC\n",
+    "print(df) #print out all C, Train ROC score and Test ROC score"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Train set AUC:  0.695354721814377\n",
+      "Test set AUC:  0.6384487570227318\n",
+      "                                coefficient\n",
+      "inquirytelcom12month               0.728381\n",
+      "COL5069                            0.721852\n",
+      "CCA_CCA_INQ_90_DAYS                0.663593\n",
+      "VANTAGE_V4_SCORE                   0.662900\n",
+      "CCA_DSINCE_PRVBNKACCT_1ST_SEEN     0.658757\n",
+      "AUT5930                            0.576187\n",
+      "BCC7117                            0.478549\n",
+      "ALL8271                            0.424762\n",
+      "bankcard_score                     0.380445\n",
+      "BCC3341                            0.378725\n",
+      "crossindustry_score                0.336786\n",
+      "ALL8270                            0.308709\n",
+      "auto_score                         0.291252\n",
+      "ALL4028                            0.253193\n",
+      "ILN5238                            0.151327\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "0.36702674950613223"
+      ]
+     },
+     "execution_count": 33,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# run logistic regression and print aout ROC and variables we use\n",
+    "# Change C parameter in LogisticRegression, used the optimal one (Highest Test set ROC) from the previous step\n",
+    "# Remove the wrong trend variable by adding the variable name into the drop.list in the previous step \n",
+    "\n",
+    "lr = LogisticRegression(penalty='l1',C =  0.048939 , solver='saga',random_state = 1).fit(Converted_X_train.drop(drop_list,axis = 1), y_train,y_train_freq) #run lasso logistic regression using best C\n",
+    "feature_importances = pd.DataFrame(lr.coef_.T,\n",
+    "                                       index = Converted_X_train.drop(drop_list,axis = 1).columns,\n",
+    "                                        columns=['importance']).sort_values('importance',ascending=False) # create a datafrme to save feature importance\n",
+    "new_X_train=Converted_X_train[feature_importances.iloc[0:N,:].index.tolist()] #select the best N variables and create a new train dataset\n",
+    "new_X_test=Converted_X_test[feature_importances.iloc[0:N,:].index.tolist()] #select the best N variables and create a new test dataset\n",
+    "lr = LogisticRegression().fit(new_X_train, y_train,y_train_freq) #run the logistic\n",
+    "y_decision_fn_scores_auc = lr.decision_function(new_X_train) # calculate decision score (when we calculate Taprezoid ROC we need score) \n",
+    "print('Train set AUC: ',roc_auc_score(y_train, y_decision_fn_scores_auc, sample_weight = y_train_freq)) #calculate ROC and print it out\n",
+    "y_decision_fn_scores_auc = lr.decision_function(new_X_test)\n",
+    "print('Test set AUC: ',roc_auc_score(y_test, y_decision_fn_scores_auc, sample_weight = y_test_freq))\n",
+    "selected_feature = feature_importances.iloc[0:N,:].index.tolist() # select the best N variable's name and  and save them in list \n",
+    "lr_coef = pd.DataFrame(lr.coef_.T, index = new_X_train.columns, columns=['coefficient']).sort_values('coefficient',ascending=False) # create a new dataframe to save variable name and coefficient\n",
+    "print(lr_coef) #print variable coefficient\n",
+    "lr.intercept_[0] #print out intercept"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# calculate score\n",
+    "scorecard_point ={}\n",
+    "for i in lr_coef.index.tolist():\n",
+    "    scorecard_point[i] = group_dictionary[i].copy()\n",
+    "    scorecard_point[i]['score_point'] =  round((scorecard_point[i]['WOE']*lr_coef.loc[i][0]+lr.intercept_[0]/N)*28.8539008+200/N)\n",
+    "# scorecard_point['crossindustry_score'] # uncomment for scorecard point example"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# create scorecard table\n",
+    "for i,j in zip(lr_coef.index.tolist(),range(len(lr_coef))):\n",
+    "    if j == 0:\n",
+    "        scorecard = scorecard_point[i].copy()\n",
+    "        scorecard = scorecard.rename(columns={'min_' + i:'min','max_'+ i:'max'})\n",
+    "        scorecard['variable'] = i\n",
+    "        scorecard = scorecard.set_index('variable')\n",
+    "        \n",
+    "    else:\n",
+    "        scorecard2 = scorecard_point[i].copy()\n",
+    "        scorecard2 = scorecard2.rename(columns={'min_' + i:'min','max_'+ i:'max'})\n",
+    "        scorecard2['variable'] = i\n",
+    "        scorecard2 = scorecard2.set_index('variable')\n",
+    "        scorecard = pd.concat([scorecard,scorecard2], ignore_index=False)\n",
+    "scorecard_before = scorecard.copy()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>min</th>\n",
+       "      <th>max</th>\n",
+       "      <th>GOOD</th>\n",
+       "      <th>total</th>\n",
+       "      <th>GOOD_rate</th>\n",
+       "      <th>WOE</th>\n",
+       "      <th>score_point</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>variable</th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>inquirytelcom12month</th>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>2401.751606</td>\n",
+       "      <td>3948.751606</td>\n",
+       "      <td>0.608231</td>\n",
+       "      <td>0.079311</td>\n",
+       "      <td>16.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>inquirytelcom12month</th>\n",
+       "      <td>1.0</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>207.436831</td>\n",
+       "      <td>470.436831</td>\n",
+       "      <td>0.440945</td>\n",
+       "      <td>-0.597274</td>\n",
+       "      <td>1.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>inquirytelcom12month</th>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>47.978587</td>\n",
+       "      <td>90.978587</td>\n",
+       "      <td>0.527361</td>\n",
+       "      <td>-0.252093</td>\n",
+       "      <td>9.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>COL5069</th>\n",
+       "      <td>0.0</td>\n",
+       "      <td>596.0</td>\n",
+       "      <td>2087.068522</td>\n",
+       "      <td>3382.068522</td>\n",
+       "      <td>0.617098</td>\n",
+       "      <td>0.116649</td>\n",
+       "      <td>16.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>COL5069</th>\n",
+       "      <td>598.0</td>\n",
+       "      <td>864.0</td>\n",
+       "      <td>127.002141</td>\n",
+       "      <td>227.002141</td>\n",
+       "      <td>0.559476</td>\n",
+       "      <td>-0.122479</td>\n",
+       "      <td>11.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>COL5069</th>\n",
+       "      <td>866.0</td>\n",
+       "      <td>11003.0</td>\n",
+       "      <td>443.096360</td>\n",
+       "      <td>901.096360</td>\n",
+       "      <td>0.491730</td>\n",
+       "      <td>-0.393500</td>\n",
+       "      <td>6.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>CCA_CCA_INQ_90_DAYS</th>\n",
+       "      <td>0.0</td>\n",
+       "      <td>8.0</td>\n",
+       "      <td>2332.605996</td>\n",
+       "      <td>3849.605996</td>\n",
+       "      <td>0.605934</td>\n",
+       "      <td>0.069682</td>\n",
+       "      <td>15.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>CCA_CCA_INQ_90_DAYS</th>\n",
+       "      <td>9.0</td>\n",
+       "      <td>20.0</td>\n",
+       "      <td>230.014989</td>\n",
+       "      <td>437.014989</td>\n",
+       "      <td>0.526332</td>\n",
+       "      <td>-0.255270</td>\n",
+       "      <td>9.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>CCA_CCA_INQ_90_DAYS</th>\n",
+       "      <td>21.0</td>\n",
+       "      <td>165.0</td>\n",
+       "      <td>94.546039</td>\n",
+       "      <td>223.546039</td>\n",
+       "      <td>0.422938</td>\n",
+       "      <td>-0.669774</td>\n",
+       "      <td>1.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>VANTAGE_V4_SCORE</th>\n",
+       "      <td>300.0</td>\n",
+       "      <td>501.0</td>\n",
+       "      <td>465.674518</td>\n",
+       "      <td>917.674518</td>\n",
+       "      <td>0.507451</td>\n",
+       "      <td>-0.330682</td>\n",
+       "      <td>8.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>VANTAGE_V4_SCORE</th>\n",
+       "      <td>502.0</td>\n",
+       "      <td>556.0</td>\n",
+       "      <td>976.505353</td>\n",
+       "      <td>1789.505353</td>\n",
+       "      <td>0.545685</td>\n",
+       "      <td>-0.177308</td>\n",
+       "      <td>11.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>VANTAGE_V4_SCORE</th>\n",
+       "      <td>557.0</td>\n",
+       "      <td>580.0</td>\n",
+       "      <td>431.807281</td>\n",
+       "      <td>682.807281</td>\n",
+       "      <td>0.632400</td>\n",
+       "      <td>0.181239</td>\n",
+       "      <td>18.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>VANTAGE_V4_SCORE</th>\n",
+       "      <td>581.0</td>\n",
+       "      <td>634.0</td>\n",
+       "      <td>613.843683</td>\n",
+       "      <td>900.843683</td>\n",
+       "      <td>0.681410</td>\n",
+       "      <td>0.398877</td>\n",
+       "      <td>22.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>VANTAGE_V4_SCORE</th>\n",
+       "      <td>635.0</td>\n",
+       "      <td>801.0</td>\n",
+       "      <td>169.336188</td>\n",
+       "      <td>219.336188</td>\n",
+       "      <td>0.772039</td>\n",
+       "      <td>0.852406</td>\n",
+       "      <td>30.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>CCA_DSINCE_PRVBNKACCT_1ST_SEEN</th>\n",
+       "      <td>0.0</td>\n",
+       "      <td>17.0</td>\n",
+       "      <td>108.657388</td>\n",
+       "      <td>231.657388</td>\n",
+       "      <td>0.469043</td>\n",
+       "      <td>-0.483905</td>\n",
+       "      <td>5.0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                                  min      max         GOOD        total  \\\n",
+       "variable                                                                   \n",
+       "inquirytelcom12month              0.0      0.0  2401.751606  3948.751606   \n",
+       "inquirytelcom12month              1.0      1.0   207.436831   470.436831   \n",
+       "inquirytelcom12month              NaN      NaN    47.978587    90.978587   \n",
+       "COL5069                           0.0    596.0  2087.068522  3382.068522   \n",
+       "COL5069                         598.0    864.0   127.002141   227.002141   \n",
+       "COL5069                         866.0  11003.0   443.096360   901.096360   \n",
+       "CCA_CCA_INQ_90_DAYS               0.0      8.0  2332.605996  3849.605996   \n",
+       "CCA_CCA_INQ_90_DAYS               9.0     20.0   230.014989   437.014989   \n",
+       "CCA_CCA_INQ_90_DAYS              21.0    165.0    94.546039   223.546039   \n",
+       "VANTAGE_V4_SCORE                300.0    501.0   465.674518   917.674518   \n",
+       "VANTAGE_V4_SCORE                502.0    556.0   976.505353  1789.505353   \n",
+       "VANTAGE_V4_SCORE                557.0    580.0   431.807281   682.807281   \n",
+       "VANTAGE_V4_SCORE                581.0    634.0   613.843683   900.843683   \n",
+       "VANTAGE_V4_SCORE                635.0    801.0   169.336188   219.336188   \n",
+       "CCA_DSINCE_PRVBNKACCT_1ST_SEEN    0.0     17.0   108.657388   231.657388   \n",
+       "\n",
+       "                                GOOD_rate       WOE  score_point  \n",
+       "variable                                                          \n",
+       "inquirytelcom12month             0.608231  0.079311         16.0  \n",
+       "inquirytelcom12month             0.440945 -0.597274          1.0  \n",
+       "inquirytelcom12month             0.527361 -0.252093          9.0  \n",
+       "COL5069                          0.617098  0.116649         16.0  \n",
+       "COL5069                          0.559476 -0.122479         11.0  \n",
+       "COL5069                          0.491730 -0.393500          6.0  \n",
+       "CCA_CCA_INQ_90_DAYS              0.605934  0.069682         15.0  \n",
+       "CCA_CCA_INQ_90_DAYS              0.526332 -0.255270          9.0  \n",
+       "CCA_CCA_INQ_90_DAYS              0.422938 -0.669774          1.0  \n",
+       "VANTAGE_V4_SCORE                 0.507451 -0.330682          8.0  \n",
+       "VANTAGE_V4_SCORE                 0.545685 -0.177308         11.0  \n",
+       "VANTAGE_V4_SCORE                 0.632400  0.181239         18.0  \n",
+       "VANTAGE_V4_SCORE                 0.681410  0.398877         22.0  \n",
+       "VANTAGE_V4_SCORE                 0.772039  0.852406         30.0  \n",
+       "CCA_DSINCE_PRVBNKACCT_1ST_SEEN   0.469043 -0.483905          5.0  "
+      ]
+     },
+     "execution_count": 36,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "scorecard_before.head(15)  #Scorecard Sample"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Import Node - Reject File"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# import rejected dataset\n",
+    "rejected_db = pd.read_csv(r\"\\\\neptune\\RAD\\4 Models\\Scorecard 8.0_Redesign\\Modeling Data\\Valid Credit\\Clarity Hit\\With Inquiry\\Rejects_84459.csv\")\n",
+    "#len(rejected_db)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Sample Node - Reject File "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Sample to : 4670\n"
+     ]
+    }
+   ],
+   "source": [
+    "# sample rejected dataset down\n",
+    "rejected_sampledown = rejected_db.sample(n=len(GB),random_state=1000)\n",
+    "print(\"Sample to :\",len(rejected_sampledown))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# prepare data for reject inference\n",
+    "#a.remove('Frequency')\n",
+    "#a.remove('G_B')\n",
+    "for i in ['Frequency','TARGET_GB']:\n",
+    "    a.remove(i)\n",
+    "rejected_droped = rejected_sampledown.drop(a,axis=1)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "rejected_droped['useless_column'] = 1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# prepare data for reject inference\n",
+    "GB_accept = GB_for_group.copy()\n",
+    "GB_accept['GOOD'] = y['GOOD']\n",
+    "GB_accept['Frequency'] = GB['Frequency']\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# GB_accept.head(50) # Display sample of dataframe"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Reject Inference Node"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# createreject_inference_function\n",
+    "\n",
+    "def reject_inference(GB_accept, rejected_droped, model,selected_feature,group_dictionary,rejection_rate =0.7):\n",
+    "    # Convert data\n",
+    "    r_db, converted_r_db = convert_X(rejected_droped, selected_feature, group_dictionary)\n",
+    "    \n",
+    "    Assume_Good = rejected_droped.copy()\n",
+    "    Assume_Good['Good_prob'] = rejection_rate/(1 - rejection_rate)/(len(rejected_droped)/GB_accept['Frequency'].sum())\n",
+    "    Assume_Good['GOOD'] = 1 \n",
+    "    Assume_Good['Frequency'] = Assume_Good['Good_prob']*model.predict_proba(converted_r_db)[:,1]\n",
+    "    \n",
+    "    Assume_Bad = rejected_droped.copy()\n",
+    "    Assume_Bad['Good_prob'] = rejection_rate/(1 - rejection_rate)/(len(rejected_droped)/GB_accept['Frequency'].sum())\n",
+    "    Assume_Bad['GOOD'] = 0\n",
+    "    Assume_Bad['Frequency'] = Assume_Good['Good_prob']*model.predict_proba(converted_r_db)[:,0]\n",
+    "    \n",
+    "    Assume_GB = Assume_Good.append(Assume_Bad, ignore_index=True)\n",
+    "    \n",
+    "    Accept_Reject = GB_accept.reset_index().append(Assume_GB[GB_accept.columns.tolist()], ignore_index=True,sort=False)\n",
+    "    return Accept_Reject"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# run reject inference function\n",
+    "Accept_Reject= reject_inference(GB_accept, rejected_droped, lr,selected_feature, group_dictionary, rejection_rate =0.7)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 45,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Accept_Reject: 14010\n"
+     ]
+    }
+   ],
+   "source": [
+    "print('Accept_Reject:', len(Accept_Reject)) # Length of Reject Inference"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Second Data Partition Node"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 46,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# prepare data for training\n",
+    "y_Good2=Accept_Reject[\"GOOD\"]\n",
+    "Accept_Reject_index = Accept_Reject['index']\n",
+    "Accept_Reject_freq = Accept_Reject['Frequency']\n",
+    "Accept_Reject_noindex = Accept_Reject.drop(['index','GOOD'],axis=1)\n",
+    "X_train2, X_test2, y_train2, y_test2 = train_test_split(Accept_Reject_noindex, y_Good2, random_state = 1234567, test_size=0.3)\n",
+    "y_train_freq2 = X_train2['Frequency']\n",
+    "y_test_freq2 = X_test2['Frequency']\n",
+    "X_train2 = X_train2.drop(['Frequency'],axis = 1)\n",
+    "X_test2 = X_test2.drop(['Frequency'],axis = 1)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Interactive Grouping Node - After"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 47,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "purchaseactivitycount includes Nan only\n",
+      "purchaseactivitydollartotal includes Nan only\n",
+      "ALL9230 includes Nan only\n",
+      "ALL9239 includes Nan only\n",
+      "ALL9280 includes Nan only\n"
+     ]
+    }
+   ],
+   "source": [
+    "# run interactive grouping again\n",
+    "group_dictionary2, Accept_List2, IV_table2 = interactive_grouping2(X_train2, y_train2, Accept_Reject_freq, n=5, reject_level=0.02)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Group Dictionary Example\n",
+    "# group_dictionary2['crossindustry_score']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 49,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# show information value table\n",
+    "# IV_table2"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Scorecard Node - After"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# convert test value to WOE\n",
+    "Original_X_train2, Converted_X_train2 = convert_X(X_train2, Accept_List2, group_dictionary2)\n",
+    "Original_X_test2, Converted_X_test2 = convert_X(X_test2, Accept_List2, group_dictionary2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# variable selection\n",
+    "drop_list = []\n",
+    "N2 = 15 # number of variables\n",
+    "Test_roc = []\n",
+    "Train_roc = []\n",
+    "Cs = np.logspace(-3, 1, num=20)\n",
+    "for C in Cs:\n",
+    "    lr2 = LogisticRegression(penalty='l1', solver='saga',C = C).fit(Converted_X_train2.drop(drop_list,axis = 1), y_train2,y_train_freq2)\n",
+    "    feature_importances2 = pd.DataFrame(lr2.coef_.T,\n",
+    "                                       index = Converted_X_train2.drop(drop_list,axis = 1).columns,\n",
+    "                                        columns=['importance']).sort_values('importance',ascending=False)\n",
+    "    new_X_train2=Converted_X_train2[feature_importances2.iloc[0:N2,:].index.tolist()]\n",
+    "    new_X_test2=Converted_X_test2[feature_importances2.iloc[0:N2,:].index.tolist()]\n",
+    "    lr2 = LogisticRegression().fit(new_X_train2, y_train2,y_train_freq2)\n",
+    "    y_decision_fn_scores_auc2 = lr2.decision_function(new_X_train2)\n",
+    "    Train_roc.append(roc_auc_score(y_train2, y_decision_fn_scores_auc2, sample_weight = y_train_freq2))\n",
+    "    y_decision_fn_scores_auc2 = lr2.decision_function(new_X_test2)\n",
+    "    Test_roc.append(roc_auc_score(y_test2, y_decision_fn_scores_auc2, sample_weight = y_test_freq2))\n",
+    "    \n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "ax = plt.gca()\n",
+    "ax.set_xscale('log')\n",
+    "ax.plot(Cs, Train_roc,'g', label = 'Train')\n",
+    "ax.plot(Cs, Test_roc,'b', label = 'Test')\n",
+    "#Set limits and titles\n",
+    "plt.ylim([0.6,0.8])\n",
+    "plt.xlabel('Cs')\n",
+    "plt.ylabel('AUC or ROC')\n",
+    "plt.legend()\n",
+    "plt.title('Tune regularization')\n",
+    " \n",
+    "plt.savefig('Tuning.png')\n",
+    "plt.show()\n",
+    "\n",
+    "df2 = pd.DataFrame([Cs,Train_roc,Test_roc]).T.rename(columns={0:\"C\",1:\"Train\", 2:\"Test\"})\n",
+    "print(df2[df2[\"Test\"] == df2[\"Test\"].max()])\n",
+    "print(df2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# run logistic regression\n",
+    "lr2 = LogisticRegression(penalty='l1', solver='saga',C = 0.01833).fit(Converted_X_train2.drop(drop_list,axis = 1), y_train2,y_train_freq2)\n",
+    "feature_importances2 = pd.DataFrame(lr2.coef_.T,\n",
+    "                                       index = Converted_X_train2.drop(drop_list,axis = 1).columns,\n",
+    "                                        columns=['importance']).sort_values('importance',ascending=False)\n",
+    "new_X_train2=Converted_X_train2[feature_importances2.iloc[0:N2,:].index.tolist()]\n",
+    "new_X_test2=Converted_X_test2[feature_importances2.iloc[0:N2,:].index.tolist()]\n",
+    "lr2 = LogisticRegression().fit(new_X_train2, y_train2,y_train_freq2)\n",
+    "y_decision_fn_scores_auc2 = lr2.decision_function(new_X_train2)\n",
+    "print('Train set AUC: ',roc_auc_score(y_train2, y_decision_fn_scores_auc2, sample_weight = y_train_freq2))\n",
+    "y_decision_fn_scores_auc2 = lr2.decision_function(new_X_test2)\n",
+    "print('Test set AUC: ',roc_auc_score(y_test2, y_decision_fn_scores_auc2, sample_weight = y_test_freq2))\n",
+    "lr_coef2 = pd.DataFrame(lr2.coef_.T, index = new_X_train2.columns, columns=['coefficient']).sort_values('coefficient',ascending=False)\n",
+    "print(lr_coef2)\n",
+    "lr2.intercept_[0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# calculate score\n",
+    "scorecard_point ={}\n",
+    "for i in lr_coef2.index.tolist():\n",
+    "    scorecard_point[i] = group_dictionary2[i].copy()\n",
+    "    scorecard_point[i]['score_point'] =  round((scorecard_point[i]['WOE']*lr_coef2.loc[i][0]+lr2.intercept_[0]/N2)*28.8539008+200/N2)\n",
+    "# scorecard_point['crossindustry_score']"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Score Node"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# score function\n",
+    "# the same as Convert_X function\n",
+    "def score(db_original, Feature_List, scorecard_point):\n",
+    "    db = db_original[Feature_List]\n",
+    "    db1 = db.fillna(db.min()-200000).reset_index()\n",
+    "    columns = db.columns\n",
+    "    converted_db = db.copy()\n",
+    "    scorecard_point1 = copy.deepcopy(scorecard_point)\n",
+    "    for i in range(len(columns)):\n",
+    "                db1[columns[i]] = db1[columns[i]].astype('float64')\n",
+    "                scorecard_point1[columns[i]].loc[0,['min_' + columns[i]]] = scorecard_point[columns[i]]['min_' + columns[i]].min()-100000\n",
+    "                db2 = pd.merge_asof(db1.sort_values(columns[i]), \\\n",
+    "                                    scorecard_point1[columns[i]].fillna(scorecard_point1[columns[i]].min()-300000).sort_values('min_' + columns[i]), \\\n",
+    "                                    left_on = columns[i], right_on = 'min_' + columns[i])[['index','score_point']].set_index('index')\n",
+    "                converted_db[columns[i]] = db2['score_point']\n",
+    "                converted_db['sum'] = converted_db[Feature_List].sum(axis = 1)\n",
+    "    return converted_db"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# run the score function to calculate score\n",
+    "scored_db = score(db,lr_coef2.index.tolist(),scorecard_point)\n",
+    "\n",
+    "# scored_db # Scorecard output"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# add a new column 'score' to original dataset\n",
+    "db['score'] = scored_db['sum']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "# create scorecard table\n",
+    "for i,j in zip(lr_coef2.index.tolist(),range(len(lr_coef2))):\n",
+    "    if j == 0:\n",
+    "        scorecard = scorecard_point[i].copy()\n",
+    "        scorecard = scorecard.rename(columns={'min_' + i:'min','max_'+ i:'max'})\n",
+    "        scorecard['variable'] = i\n",
+    "        scorecard = scorecard.set_index('variable')\n",
+    "        \n",
+    "    else:\n",
+    "        scorecard2 = scorecard_point[i].copy()\n",
+    "        scorecard2 = scorecard2.rename(columns={'min_' + i:'min','max_'+ i:'max'})\n",
+    "        scorecard2['variable'] = i\n",
+    "        scorecard2 = scorecard2.set_index('variable')\n",
+    "        scorecard = pd.concat([scorecard,scorecard2], ignore_index=False)\n",
+    "# scorecard"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "scorecard"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Stage 2"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Filter Node - Stage 2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Stage 2\n",
+    "#Filter out Good and Bad\n",
+    "\n",
+    "Stage2_Goods=db[db[\"TARGET_GB_NEW\"]==\"GOOD\"]  #we use two db because one db will give the count of the whole dataset\n",
+    "Stage2_Bads=db[db[\"TARGET_GB_NEW\"]==\"BAD\"]\n",
+    "Stage2_GB=Stage2_Goods.append(Stage2_Bads) #can do Good.append(Bad)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "print(\"append Good and Bad:\",len(Stage2_GB)) #GB #will give the dataset that has the good and bad appended"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Data Partition Node - Stage 2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Convert Good and Bad to dummy variable\n",
+    "Stage2_GB_y = pd.get_dummies(Stage2_GB[\"TARGET_GB_NEW\"]) #converts categorical variable (target) into dummy/indicator variables such as zero and one. The G_B becomes two columns (Good and Bad)\n",
+    "Stage2_GB_y_Bad = Stage2_GB_y[\"BAD\"]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Train and Test split\n",
+    "# The column name need to manually input 'CASH_DOWNPCT','OPENINGBALANCE_PCT','PTI', 'NET_AFPCT', 'YRSATWORK', 'LTV', 'score'\n",
+    "Stage2_X_train, Stage2_X_test, Stage2_y_train, Stage2_y_test = train_test_split(Stage2_GB[['CASH_DOWNPCT',\n",
+    "                                                                                           'OPENINGBALANCE_PCT',\n",
+    "                                                                                           'PTI',\n",
+    "                                                                                           #'NET_AFPCT',\n",
+    "                                                                                           #'YRSATWORK',\n",
+    "                                                                                           #'LTV',\n",
+    "                                                                                           'score']], Stage2_GB_y_Bad, random_state = 34, test_size=0.25) #2609"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Logistic Regressoin Node"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "Stage2_GB[['CASH_DOWNPCT','OPENINGBALANCE_PCT','PTI','NET_AFPCT','YRSATWORK','LTV','score']].info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Run logistic Regression\n",
+    "lr3 = LogisticRegression().fit(Stage2_X_train, Stage2_y_train)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "##### Output:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Drop the wrong trend variables in the Data Parition Node - Stage 2 by commenting out the column names\n",
+    "\n",
+    "# Coefficient Trends\n",
+    "# CASH_DOWNPCT: Coefficient should be negative. The higher the CASH_DOWNPCT, the lower the Bad Rate.\n",
+    "# OPENINGBALANCE_PCT: Coefficient should be positive. The higher the OPENINGBALANCE_PCT, the higher the Bad Rate.\n",
+    "# PTI: Coefficient should be positive. The higher the PTI, the higher the Bad Rate.\n",
+    "# NET_AFPCT: Coefficient should be positive. The higher the NET_AFPCT, the higher the Bad Rate.\n",
+    "# YRSATWORK: Coefficient should be negative. The higher the YRSATWORK, the lower the Bad Rate.\n",
+    "# LTV: Coefficient should be positive. The higher the LTV, the higher the Bad Rate.\n",
+    "# score: Coefficient should be negative. The higher the score, the lower the Bad Rate.\n",
+    "\n",
+    "y_decision_fn_scores_auc3 = lr3.decision_function(Stage2_X_train)\n",
+    "print('Train set AUC: ',roc_auc_score(Stage2_y_train, y_decision_fn_scores_auc3))\n",
+    "y_decision_fn_scores_auc3 = lr3.decision_function(Stage2_X_test)\n",
+    "print('Test set AUC: ',roc_auc_score(Stage2_y_test, y_decision_fn_scores_auc3))\n",
+    "lr_coef3 = pd.DataFrame(lr3.coef_.T, index = Stage2_X_train.columns, columns=['coefficient']).sort_values('coefficient',ascending=False)\n",
+    "print(lr_coef3)\n",
+    "lr3.intercept_[0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# calculate Bad Proba\n",
+    "db['Bad_Proba'] = lr3.predict_proba(db[['score','PTI', 'CASH_DOWNPCT','OPENINGBALANCE_PCT']])[:,1]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "abc = IV_table2.set_index('Variable_Name').loc[new_X_train2.columns.tolist(),:].sort_values('Information_Value', ascending=False)\n",
+    "abc"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Export to Excel"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# export result to excel\n",
+    "# Need to change the file path\n",
+    "output_path = r'\\\\neptune\\RAD\\9 Temp Hold\\Hao\\Scorecard Modeling Python_HC\\Segment F\\SegmentF_Python.xlsx'\n",
+    "\n",
+    "writer = pd.ExcelWriter(output_path)\n",
+    "db.to_excel(writer,'Sheet1')\n",
+    "scorecard.to_excel(writer,'Variables_after')\n",
+    "scorecard_before.to_excel(writer,'Variables_before')\n",
+    "abc.to_excel(writer,'Information_Values')\n",
+    "writer.save()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Stage 1 results SAS vs Python - ROC Curve and Lift Chart"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Input the same file path as in the pd.ExcelWriter() function\n",
+    "\n",
+    "path1 = r\"\\\\neptune\\RAD\\9 Temp Hold\\Hao\\Scorecard Modeling Python_HC\\Segment F\\SegmentF_Python.xlsx\"\n",
+    "path2 = r\"\\\\neptune\\RAD\\9 Temp Hold\\Hao\\Scorecard Modeling Python_HC\\Segment F\\Stage1_SAS.xlsx\"\n",
+    "\n",
+    "df1 = pd.read_excel(path1, sheet_name= 'Sheet1')\n",
+    "df2 = pd.read_excel(path2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#df1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#df2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df2[df2['TARGET_GB_NEW'] == 'INDET'].count()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df2 = df2[['LN_Key2', 'SCORECARD_POINTS']]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_final = pd.merge(df1, df2, on = 'LN_Key2', how = 'left')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# df_final"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df_final.rename(columns={\n",
+    "    'SCORECARD_POINTS': 'SAS_Stage1',\n",
+    "    'score': 'Python_Stage1'\n",
+    "}, inplace = True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# df_final"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Function Definition. \n",
+    "\n",
+    "def roc_calc(df, target_name, *score_name):\n",
+    "    import pandas as pd\n",
+    "    import numpy as np\n",
+    "    \n",
+    "    df[target_name] = df[target_name].str.upper()\n",
+    "    df = df[(df[target_name] == 'GOOD') | (df[target_name] == 'BAD')]\n",
+    "    \n",
+    "    result = {}\n",
+    "    for score in score_name:\n",
+    "        piv = df.pivot_table(df,index=score,columns=target_name,aggfunc='size',fill_value=0)\n",
+    "        if piv.index.max() <= 1:     # if it's second stage bad rate, sort from high to low\n",
+    "            piv = piv.sort_index(ascending=False)\n",
+    "        else:                        # if it's first stage score, sort from low to high\n",
+    "            piv = piv.sort_index()\n",
+    "        piv['Bad%'] = (piv.BAD.cumsum(axis=0))/(piv.BAD.sum())\n",
+    "        piv['Good%'] = (piv.GOOD.cumsum(axis=0))/(piv.GOOD.sum())\n",
+    "        roc = (piv['Good%'] - piv['Good%'].shift(1)) * (piv['Bad%'] + piv['Bad%'].shift(1))/2   \n",
+    "        roc = sum(roc.replace(np.nan,0))        \n",
+    "        result[score] = roc\n",
+    "    result = pd.Series(result)\n",
+    "    result.name = 'ROC'\n",
+    "    return result\n",
+    "    \n",
+    "    \n",
+    "def roc_plot(df, target_name, *score_name):\n",
+    "    import pandas as pd\n",
+    "    import numpy as np\n",
+    "    import matplotlib.pyplot as plt\n",
+    "    \n",
+    "    df[target_name] = df[target_name].str.upper()\n",
+    "    df = df[(df[target_name] == 'GOOD') | (df[target_name] == 'BAD')]\n",
+    "    \n",
+    "    fig = plt.figure(figsize=(6,6))\n",
+    "    \n",
+    "    roc_lst = []\n",
+    "    \n",
+    "    for score in score_name:\n",
+    "        piv = df.pivot_table(df,index=score,columns=target_name,aggfunc='size',fill_value=0)\n",
+    "        if piv.index.max() <= 1:     # if it's second stage bad rate, sort from high to low\n",
+    "            piv = piv.sort_index(ascending=False)\n",
+    "        else:                        # if it's first stage score, sort from low to high\n",
+    "            piv = piv.sort_index()\n",
+    "        piv['Bad%'] = (piv.BAD.cumsum(axis=0))/(piv.BAD.sum())\n",
+    "        piv['Good%'] = (piv.GOOD.cumsum(axis=0))/(piv.GOOD.sum())\n",
+    "        roc = (piv['Good%'] - piv['Good%'].shift(1)) * (piv['Bad%'] + piv['Bad%'].shift(1))/2   \n",
+    "        roc = sum(roc.replace(np.nan,0)) *100  \n",
+    "        roc_lst.append(roc)\n",
+    "        \n",
+    "        if len(roc_lst) == 1:\n",
+    "            plt.plot(piv['Good%'], piv['Bad%'], lw=2, label = \"{}: {:.2f}%, Base\".format(score, roc))\n",
+    "        else:\n",
+    "            lift = 100* (roc - roc_lst[0])/roc_lst[0]\n",
+    "            plt.plot(piv['Good%'], piv['Bad%'], lw=2, label = \"{}: {:.2f}%, Lift={:.2f}%\".format(score, roc,lift))\n",
+    "        \n",
+    "    plt.xlim(-0.1,1.1)\n",
+    "    plt.ylim(-0.1,1.1)\n",
+    "    plt.xlabel('Cumulative % of Goods')\n",
+    "    plt.ylabel('Cumulative % of Bads')\n",
+    "    plt.grid()\n",
+    "    plt.title('ROC curve')\n",
+    "    plt.legend(prop={'size':13}, bbox_to_anchor=(1.05, 1), loc='upper left')\n",
+    "    plt.show()\n",
+    "    \n",
+    "    \n",
+    "def lift(base_roc, new_roc):\n",
+    "    return (new_roc-base_roc)/base_roc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "target = 'TARGET_GB_NEW'\n",
+    "score1 = 'SAS_Stage1'\n",
+    "score2 = 'Python_Stage1'\n",
+    "\n",
+    "roc_plot(df_final, target, score1, score2);"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.8"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
