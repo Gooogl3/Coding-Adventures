@@ -1,0 +1,198 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "91712b6a",
+   "metadata": {},
+   "source": [
+    "# Importing Specific Sheets"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "8511ed3e",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import os\n",
+    "from datetime import datetime\n",
+    "\n",
+    "# Files for upload\n",
+    "path1 = r'C:\\Users\\jni\\Desktop\\All Branch Data.xlsx'\n",
+    "\n",
+    "# Selecting Sheet\n",
+    "df1 = pd.read_excel(path1, sheet_name = \"ALL\", engine='openpyxl')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "97a23da4",
+   "metadata": {},
+   "source": [
+    "# Unique Value Function"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "aead209a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# function to get unique values\n",
+    "def unique(list1):\n",
+    " \n",
+    "    # initialize a null list\n",
+    "    unique_list = []\n",
+    "     \n",
+    "    # traverse for all elements\n",
+    "    for x in list1:\n",
+    "        # check if exists in unique_list or not\n",
+    "        if x not in unique_list:\n",
+    "            unique_list.append(x)\n",
+    "    # print list\n",
+    "    for x in unique_list:\n",
+    "        print (x)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b2afa094",
+   "metadata": {},
+   "source": [
+    "# Counting Values in DF"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "2325bf07",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "Dataframe.count()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "fb54d489",
+   "metadata": {},
+   "source": [
+    "# Natural Log"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "feb16864",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import math\n",
+    "natural_log = math.log(1)\n",
+    "\n",
+    "import numpy as np\n",
+    "natural_log = np.log(1)\n",
+    "\n",
+    "# Replace 1 with your value"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "67ed4228",
+   "metadata": {},
+   "source": [
+    "# Creating Bins"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "aa250153",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "# Creating Bins\n",
+    "bins = [-math.inf, 426, 1636, 3210, 5265, 7948, 10995, 14646, 19595, 28303, math.inf]\n",
+    "labels = [1,2,3,4,5,6,7,8,9,10]\n",
+    "df1['binned'] = pd.cut(df1['ALL5074'], bins=bins, labels=labels)\n",
+    "temp = df1[['ALL5074', 'binned']]\n",
+    "print(temp)\n",
+    "\n",
+    "# Calculating the percentages of the bins\n",
+    "temp = Dev.groupby('binned').count()\n",
+    "binned = temp['LN_Key2']\n",
+    "binned_pct = (temp['LN_Key2'] / temp['LN_Key2'].sum())\n",
+    "print(round(binned_pct,4))\n",
+    "\n",
+    "# Auto creating bins\n",
+    "Bin_num = 10\n",
+    "Bin_count = [1,2,3,4,5,6,7,8,9,10]\n",
+    "Dev['Interval'] = pd.qcut(Dev['SC80_Stage1'],  q = Bin_num,precision = 0, labels = Bin_count)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "93d231f1",
+   "metadata": {},
+   "source": [
+    "# Adding Title"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "26886285",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "Variable = \"Hello meme\"\n",
+    "Final.style.set_caption(Variable)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "ef418a0c",
+   "metadata": {},
+   "source": [
+    "# Sorting"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "fe0b02f1",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "Final = Final.sort_index() # This is used for rearranging the index of Bins"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.8"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
